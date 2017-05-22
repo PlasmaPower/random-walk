@@ -1,0 +1,17 @@
+name: random-walk
+version: "0.1.0"
+author: Lee Bousfield <ljbousfield@gmail.com>
+about: Calculates random walks
+args:
+  - number:
+      short: n
+      long: number
+      value_name: NUMBER
+      default_value: "1"
+      help: Number of walks to calculate
+  - starting_room:
+      short: s
+      long: starting-room
+      value_name: ROOM
+      default_value: D
+      help: Starting room
