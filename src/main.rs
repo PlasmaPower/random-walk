@@ -19,6 +19,10 @@ impl Room {
             doors: doors,
         }
     }
+
+    pub fn random_door<R: Rng>(&self, rng: &mut R) -> &'static str {
+        rng.choose(&self.doors).unwrap()
+    }
 }
 
 lazy_static! {
@@ -26,10 +30,10 @@ lazy_static! {
         let mut map = HashMap::new();
         map.insert("A", Room::new(vec!["F", "D"]));
         map.insert("B", Room::new(vec!["D"]));
-        map.insert("C", Room::new(vec!["D", "EXIT"]));
+        map.insert("C", Room::new(vec!["EXIT"]));
         map.insert("D", Room::new(vec!["A", "B", "C", "E"]));
         map.insert("E", Room::new(vec!["D", "F"]));
-        map.insert("F", Room::new(vec!["A", "E", "EXIT"]));
+        map.insert("F", Room::new(vec!["EXIT"]));
         map
     };
 }
@@ -47,8 +51,8 @@ fn main() {
         let mut room = starting_room;
         loop {
             hours += 1;
-            let next_room = rng.choose(&room.doors).unwrap();
-            if next_room == &"EXIT" {
+            let next_room = room.random_door(&mut rng);
+            if next_room == "EXIT" {
                 break;
             }
             room = ROOMS.get(next_room).unwrap();
@@ -58,5 +62,5 @@ fn main() {
     }
     let mean = (hours_sum as f64) / (n as f64);
     println!("mean: {}", mean);
-    println!("stdev: {}", ((hours_squared_sum as f64) / (n as f64) - mean.powi(2)).sqrt());
+    println!("stdev: {}", ((hours_squared_sum as f64) / ((n - 1) as f64) - mean.powi(2)).sqrt());
 }
