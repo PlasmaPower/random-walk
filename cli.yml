@@ -15,3 +15,22 @@ args:
       value_name: ROOM
       default_value: D
       help: Starting room
+  - threads:
+      short: t
+      long: threads
+      value_name: THREADS
+      default_value: "4"
+      default_value_if:
+        - ["outputs", "raw", "1"]
+      help: Number of threads to use
+  - outputs:
+      short: o
+      long: output
+      value_name: TYPE
+      default_value: mean
+      multiple: true
+      possible_values:
+        - mean
+        - stdev
+        - raw
+      help: Output format(s)
