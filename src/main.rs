@@ -10,8 +10,17 @@ extern crate clap;
 extern crate rand;
 use rand::Rng;
 
+extern crate fnv;
+use fnv::FnvHashMap;
+
+pub struct ThreadResult {
+    sum: u64,
+    sum_of_squares: u64,
+    counts: Option<FnvHashMap<u8, u64>>,
+}
+
 pub struct Room {
-    pub doors: Vec<&'static str>,
+    doors: Vec<&'static str>,
 }
 
 impl Room {
@@ -39,7 +48,7 @@ lazy_static! {
     };
 }
 
-fn random_walk(mut rng: &mut Rng, starting_room: &Room) -> u64 {
+fn random_walk(mut rng: &mut Rng, starting_room: &Room) -> u8 {
     let mut hours = 0;
     let mut room = starting_room;
     loop {
@@ -60,7 +69,8 @@ fn main() {
     let thread_count: usize = args.value_of("threads").unwrap().parse().expect("Expected number of threads to be a positive integer");
     let starting_room = ROOMS.get(args.value_of("starting_room").unwrap()).expect("Expected starting room to be a room");
     let outputs = args.values_of("outputs").unwrap().collect::<Vec<_>>();
-    let raw_output = outputs.contains(&"raw");
+    let output_raw = outputs.contains(&"raw");
+    let output_counts = outputs.contains(&"counts");
     let mut threads = Vec::new();
     for i in 0..thread_count {
         threads.push(thread::spawn(move || {
@@ -71,28 +81,54 @@ fn main() {
             if i == thread_count - 1 {
                 our_count += n % thread_count;
             }
+            let mut counts = if output_counts {
+                Some(FnvHashMap::default())
+            } else {
+                None
+            };
             for _ in 0..our_count {
                 let hours = random_walk(&mut rng, starting_room);
-                if raw_output {
+                if output_raw {
                     println!("{}", hours);
                 }
+                if let Some(counts) = counts.as_mut() {
+                    *counts.entry(hours).or_insert(0) += 1;
+                }
+                let hours = hours as u64;
                 our_sum += hours;
                 our_squared_sum += hours * hours;
             }
-            (our_sum, our_squared_sum)
+            ThreadResult {
+                sum: our_sum,
+                sum_of_squares: our_squared_sum,
+                counts: counts,
+            }
         }));
     }
     let mut hours_sum: u64 = 0;
     let mut hours_squared_sum: u64 = 0;
+    let mut counts = FnvHashMap::default();
     for thread in threads {
         let result = thread.join().unwrap();
-        hours_sum += result.0;
-        hours_squared_sum += result.1;
+        hours_sum += result.sum;
+        hours_squared_sum += result.sum_of_squares;
+        if let Some(result_counts) = result.counts {
+            for (hours, n) in result_counts {
+                *counts.entry(hours).or_insert(0) += n;
+            }
+        }
     }
     if outputs.contains(&"mean") {
         println!("mean: {}", (hours_sum as f64) / (n as f64));
     }
     if outputs.contains(&"stdev") {
         println!("stdev: {}", (((hours_squared_sum as f64) - ((hours_sum * hours_sum) as f64) / (n as f64)) / ((n - 1) as f64)).sqrt());
+    }
+    if output_counts {
+        let min_hours = counts.keys().min().cloned().unwrap_or(0);
+        let max_hours = counts.keys().max().cloned().unwrap_or(0);
+        for time in min_hours..(max_hours + 1) {
+            println!("{:2}: {}", time, counts.get(&time).unwrap_or(&0));
+        }
     }
 }

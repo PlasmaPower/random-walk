@@ -33,4 +33,5 @@ args:
         - mean
         - stdev
         - raw
+        - counts
       help: Output format(s)
