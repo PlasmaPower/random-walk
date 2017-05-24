@@ -71,6 +71,8 @@ fn main() {
     let outputs = args.values_of("outputs").unwrap().collect::<Vec<_>>();
     let output_raw = outputs.contains(&"raw");
     let output_counts = outputs.contains(&"counts");
+    let output_mean = outputs.contains(&"mean");
+    let output_stdev = outputs.contains(&"stdev");
     let mut threads = Vec::new();
     for i in 0..thread_count {
         threads.push(thread::spawn(move || {
@@ -82,7 +84,7 @@ fn main() {
                 our_count += n % thread_count;
             }
             let mut counts = if output_counts {
-                Some(FnvHashMap::default())
+                Some(([0u64; 20], FnvHashMap::default()))
             } else {
                 None
             };
@@ -92,12 +94,23 @@ fn main() {
                     println!("{}", hours);
                 }
                 if let Some(counts) = counts.as_mut() {
-                    *counts.entry(hours).or_insert(0) += 1;
+                    let small_index = hours as usize - 2;
+                    if small_index < counts.0.len() {
+                        counts.0[small_index] += 1;
+                    } else {
+                        *counts.1.entry(hours).or_insert(0) += 1;
+                    }
                 }
                 let hours = hours as u64;
                 our_sum += hours;
                 our_squared_sum += hours * hours;
             }
+            let counts = counts.map(|(small_counts, mut big_counts)| {
+                for (index, count) in small_counts.into_iter().enumerate() {
+                    *big_counts.entry(index as u8 + 2).or_insert(0) += *count;
+                }
+                big_counts
+            });
             ThreadResult {
                 sum: our_sum,
                 sum_of_squares: our_squared_sum,
@@ -118,10 +131,10 @@ fn main() {
             }
         }
     }
-    if outputs.contains(&"mean") {
+    if output_mean {
         println!("mean: {}", (hours_sum as f64) / (n as f64));
     }
-    if outputs.contains(&"stdev") {
+    if output_stdev {
         println!("stdev: {}", (((hours_squared_sum as f64) - ((hours_sum * hours_sum) as f64) / (n as f64)) / ((n - 1) as f64)).sqrt());
     }
     if output_counts {
